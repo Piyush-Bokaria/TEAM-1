@@ -1,0 +1,18 @@
+[
+  {
+    "clause_id": "c_123",
+    "text": "Financial entities shall have in place an internal governance and control framework that ensures an effective and prudent management of ICT risk.",
+    "page": 5,
+    "version": "2.1",
+    "score": 0.95,
+    "doc_url": "/documents/dora-final.pdf"
+  },
+  {
+    "clause_id": "c_124",
+    "text": "The ICT risk management framework shall include at least strategies, policies, procedures, ICT protocols and tools.",
+    "page": 6,
+    "version": "2.1",
+    "score": 0.88,
+    "doc_url": "/documents/dora-final.pdf"
+  }
+]

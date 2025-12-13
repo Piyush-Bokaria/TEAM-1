@@ -1,0 +1,5 @@
+{
+  "name": "RegTech Assistant",
+  "description": "An enterprise-grade regulatory compliance platform powered by Gemini AI for document analysis, diffing, and checklist generation.",
+  "requestFramePermissions": []
+}
