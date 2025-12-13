@@ -134,14 +134,14 @@ PDF Highlight Viewer / Version Diff / Checklist Generator
 
 * Python
 * Flask
-* FAISS (Vector Search)
+* FAISS (Facebook AI Similarity Search)
 * Sentence-Transformers
-* LangChain (latest)
-* Gemini (Google Generative AI)
+* LangChain
+* Gemini
 
 ### Frontend
 
-* HTML + JavaScript
+* HTML + CSS + ReactJS
 * PDF.js (PDF rendering & highlighting)
 
 ### AI / NLP
@@ -150,28 +150,6 @@ PDF Highlight Viewer / Version Diff / Checklist Generator
 * Retrieval-Augmented Generation (RAG)
 * Grounding verification
 * Semantic clause comparison
-
----
-
-## 📂 Project Structure (Simplified)
-
-```
-├── app.py                      # Flask API
-├── store_faiss.py              # FAISS-backed vector store
-├── utils.py                    # PDF extraction & chunking
-├── langchain_full_integration.py
-├── cite.py                     # Citation injection
-├── verify.py                   # Grounding verification
-├── version_compare.py          # Regulation diff engine
-├── checklist.py                # Checklist generator
-├── highlights.py               # PDF highlight builder
-├── pdf_diff.py                 # PDF diff highlight builder
-├── templates/
-│   ├── pdf_viewer.html
-│   └── pdf_diff_viewer.html
-├── pdfs/                       # Uploaded PDFs
-└── README.md
-```
 
 ---
 
@@ -198,7 +176,7 @@ python app.py
 Server runs at:
 
 ```
-http://localhost:7860
+http://localhost:8050
 ```
 
 ---
@@ -211,20 +189,6 @@ http://localhost:7860
 4. Compare regulation versions → see visual differences
 5. Generate compliance checklist → export-ready tasks
 
----
-
-## 🏆 Why This Project Stands Out
-
-* ✅ **No hallucinations** — every answer is verifiable
-* ✅ **Visual trust layer** (PDF highlights)
-* ✅ **Semantic regulation comparison** (not text diff)
-* ✅ **Business-ready compliance outputs**
-* ✅ **Judge- and auditor-friendly design**
-
-This is **not just a chatbot** — it is a **compliance intelligence system**.
-
----
-
 ## 🔮 Future Enhancements
 
 * Compliance gap detection (internal policy vs regulation)
@@ -232,12 +196,3 @@ This is **not just a chatbot** — it is a **compliance intelligence system**.
 * Exportable audit-ready compliance reports
 * Role-based access (Compliance / Legal / Auditor)
 * Multi-regulator support (RBI, SEBI, Basel, HIPAA, GDPR)
-
----
-
-## 📜 Disclaimer
-
-This project is a **decision-support system** and does not replace legal or regulatory advice.
-All outputs are intended to **assist compliance teams**, not substitute professional judgment.
-
-
