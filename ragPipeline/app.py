@@ -17,13 +17,12 @@ import re
 
 retriever = None
 
-
 app = Flask(__name__)
 CORS(app, origins=['http://localhost:5173'])
 
 # Initialize store and LangChain chain object (retriever uses store.search)
 store = FaissStore()
-chain_obj = build_chain_from_store(store)  # will use OPENAI_API_KEY if present
+chain_obj = build_chain_from_store(store)
 
 INDEX_HTML = """
 <!doctype html>
@@ -36,9 +35,7 @@ INDEX_HTML = """
 <p>Use /query to ask questions (POST JSON: {'question': '...'}).</p>
 <p>Use /rag_query to get LLM-backed answers (POST JSON: {'question':'...', 'top_k':6, 'threshold':0.65}).</p>
 """
-# model = genai.GenerativeModel("models/gemini-2.5-flash")
-# genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 def get_unique_texts(results):
     seen = set()
@@ -105,6 +102,31 @@ def context_guardrail(context_chunks):
 
     return True
 
+def grounding_guardrail(answer: str, context_chunks: list[str]) -> bool:
+    context_text = " ".join(context_chunks).lower()
+
+    # check if key phrases appear in context
+    answer_words = answer.lower().split()
+    matches = sum(1 for w in answer_words if w in context_text)
+
+    return matches / max(len(answer_words), 1) > 0.3
+
+def length_guardrail(answer: str, max_words=80) -> bool:
+    return len(answer.split()) <= max_words
+
+FORBIDDEN = ["i think", "probably", "might be", "as an ai", "guess"]
+
+def forbidden_phrase_guardrail(answer: str) -> bool:
+    lower = answer.lower()
+    return not any(p in lower for p in FORBIDDEN)
+
+def format_guardrail(answer: str) -> bool:
+    if answer.strip() == "Not found in the provided document - app.py.":
+        return True
+
+    pattern = r"^(YES|NO)\b.*"
+    return bool(re.match(pattern, answer.strip(), re.IGNORECASE))
+
 
 def generate_answer_with_groq(question: str, context_chunks: list[str]) -> str:
     try:
@@ -138,6 +160,21 @@ def generate_answer_with_groq(question: str, context_chunks: list[str]) -> str:
 
         if not response or not response.content:
             return "Not found in the document."
+        
+        answer = response.content.strip()
+
+        if not format_guardrail(answer):
+            return "Not found in the provided document - app.py."
+
+        if not grounding_guardrail(answer, context_chunks):
+            return "Not found in the provided document - app.py."
+
+        if not length_guardrail(answer):
+            return "Not found in the provided document - app.py."
+
+        if not forbidden_phrase_guardrail(answer):
+            return "Not found in the provided document - app.py."
+
 
         return response.content.strip()
 
