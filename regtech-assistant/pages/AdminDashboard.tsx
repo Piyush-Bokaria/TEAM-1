@@ -36,67 +36,92 @@ export const AdminDashboard: React.FC = () => {
     fetchDashboardData();
   }, []);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    setError(null);
+const fetchDashboardData = async () => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      const token = localStorage.getItem('authToken');
+  try {
+    /* ---------- Static Uploads Data ---------- */
+    const uploadsData: DocumentMetadata[] = [
+  {
+    id: '1',
+    title: 'Monday Uploads',
+    regulator: 'Internal',
+    jurisdiction: 'N/A',
+    date: '2024-01-01',
+    status: 'active',
+    version: 'v1.0',
+    sector: 'Compliance',
+  },
+  {
+    id: '2',
+    title: 'Tuesday Uploads',
+    regulator: 'Internal',
+    jurisdiction: 'N/A',
+    date: '2024-01-02',
+    status: 'active',
+    version: 'v1.0',
+    sector: 'Compliance',
+  },
+  {
+    id: '3',
+    title: 'Wednesday Uploads',
+    regulator: 'Internal',
+    jurisdiction: 'N/A',
+    date: '2024-01-03',
+    status: 'processing',
+    version: 'v1.0',
+    sector: 'Compliance',
+  },
+  {
+    id: '4',
+    title: 'Thursday Uploads',
+    regulator: 'Internal',
+    jurisdiction: 'N/A',
+    date: '2024-01-04',
+    status: 'active',
+    version: 'v1.0',
+    sector: 'Compliance',
+  },
+  {
+    id: '5',
+    title: 'Friday Uploads',
+    regulator: 'Internal',
+    jurisdiction: 'N/A',
+    date: '2024-01-05',
+    status: 'archived',
+    version: 'v1.0',
+    sector: 'Compliance',
+  },
+];
 
-      // BACKEND INTEGRATION POINT
-      // Fetch recent uploads/ingestion history
-      // Expected response: Array of DocumentMetadata
-      // {
-      //   id: string,
-      //   title: string,
-      //   regulator: string,
-      //   jurisdiction: string,
-      //   date: string (ISO format),
-      //   status: 'processing' | 'active' | 'error',
-      //   version: string,
-      //   sector: string
-      // }
-      const uploadsResponse = await fetch('/api/admin/ingestion/recent', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+setUploads(uploadsData);
 
-      if (!uploadsResponse.ok) {
-        throw new Error('Failed to fetch ingestion history');
-      }
+    /* ---------- Static Activity Data ---------- */
+    const activityData: ActivityData[] = [
+  { name: 'Upload', ingest: 10, error: 1 },
+  { name: 'Validate', ingest: 7, error: 0 },
+  { name: 'Process', ingest: 12, error: 2 },
+  { name: 'Report', ingest: 5, error: 0 },
+];
 
-      const uploadsData = await uploadsResponse.json();
-      setUploads(uploadsData.data || uploadsData);
+setActivityData(activityData);
 
-      // BACKEND INTEGRATION POINT
-      // Fetch weekly activity data for chart
-      // Expected response:
-      // [
-      //   { name: 'Mon', ingest: 12, error: 1 },
-      //   { name: 'Tue', ingest: 19, error: 0 },
-      //   ...
-      // ]
-      const activityResponse = await fetch('/api/admin/dashboard/activity', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
 
-      if (!activityResponse.ok) {
-        throw new Error('Failed to fetch activity data');
-      }
+    setUploads(uploadsData);
 
-      const activityResponseData = await activityResponse.json();
-      setActivityData(activityResponseData.data || activityResponseData);
+  } catch (err) {
+    console.error('Dashboard data error:', err);
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'Failed to load dashboard data'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
-    } catch (err) {
-      console.error('Dashboard fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -117,7 +142,7 @@ export const AdminDashboard: React.FC = () => {
       const file = files[0];
 
       // Validate file size (50MB limit)
-      const maxSize = 50 * 1024 * 1024;
+      const maxSize = 200 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('File size exceeds 50MB limit');
         return;

@@ -77,7 +77,7 @@ if upload_btn:
                 }
 
                 response = requests.post(
-                    f"{BACKEND_URL}/upload",
+                    f"{BACKEND_URL}/api/documents/upload",
                     files=files,
                     data=data,
                     timeout=300

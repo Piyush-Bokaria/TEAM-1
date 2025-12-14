@@ -66,20 +66,23 @@ export const UserDashboard: React.FC = () => {
       //     }
       //   ]
       // }
-      const response = await fetch('/api/user/dashboard', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      
+    const temp_metrics = [
+      { label: 'Documents Uploaded', value: '142', sub: '+12 this month', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+      { label: 'Regulations Indexed', value: '28', sub: 'Across 4 jurisdictions', icon: ShieldAlert, color: 'text-reg-teal', bg: 'bg-reg-teal/10' },
+      { label: 'Latest Update', value: 'EU AI Act', sub: 'Detected today', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
+    ];
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
+  const tempActivityFeed = [
+    { id: 1, action: 'Checklist Generated', target: 'DORA Article 5 - Governance', time: '2 hours ago', user: 'You' },
+    { id: 2, action: 'Document Uploaded', target: 'Internal IT Security Policy v2.pdf', time: '5 hours ago', user: 'You' },
+    { id: 3, action: 'Version Comparison', target: 'MiFID II v1.0 vs v1.1', time: 'Yesterday', user: 'System' },
+    { id: 4, action: 'Regulation Update', target: 'GDPR Amendment (Draft)', time: '2 days ago', user: 'System' },
+  ];
 
-      const data = await response.json();
       
       // Map metrics with icons and styling based on type
-      const mappedMetrics = (data.metrics || []).map((m: any) => {
+      const mappedMetrics = (temp_metrics || []).map((m: any) => {
         let icon, color, bg;
         
         if (m.type === 'documents' || m.label.toLowerCase().includes('document')) {
@@ -107,7 +110,7 @@ export const UserDashboard: React.FC = () => {
       });
 
       setMetrics(mappedMetrics);
-      setActivityFeed(data.activityFeed || data.activities || []);
+      setActivityFeed(tempActivityFeed || []);
 
     } catch (err) {
       console.error('Dashboard fetch error:', err);

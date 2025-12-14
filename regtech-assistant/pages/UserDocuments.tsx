@@ -50,11 +50,7 @@ export const UserDocuments: React.FC = () => {
       //     }
       //   ]
       // }
-      const response = await fetch('/api/documents', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await fetch('api/admin/ingestion/recent');
 
       if (!response.ok) {
         throw new Error('Failed to fetch documents');
