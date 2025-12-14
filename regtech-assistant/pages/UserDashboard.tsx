@@ -1,23 +1,137 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, GitCompare, ClipboardList, Clock, ArrowRight, TrendingUp, ShieldAlert } from 'lucide-react';
 import { Card, Badge, Button } from '../components/UI';
 
+interface Metric {
+  label: string;
+  value: string;
+  sub: string;
+  icon: any;
+  color: string;
+  bg: string;
+}
+
+interface Activity {
+  id: number;
+  action: string;
+  target: string;
+  time: string;
+  user: string;
+}
+
+interface DashboardData {
+  metrics: Metric[];
+  activityFeed: Activity[];
+}
+
 export const UserDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [activityFeed, setActivityFeed] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const metrics = [
-    { label: 'Documents Uploaded', value: '142', sub: '+12 this month', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Regulations Indexed', value: '28', sub: 'Across 4 jurisdictions', icon: ShieldAlert, color: 'text-reg-teal', bg: 'bg-reg-teal/10' },
-    { label: 'Latest Update', value: 'EU AI Act', sub: 'Detected today', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
-  ];
+  // BACKEND INTEGRATION POINT
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const activityFeed = [
-    { id: 1, action: 'Checklist Generated', target: 'DORA Article 5 - Governance', time: '2 hours ago', user: 'You' },
-    { id: 2, action: 'Document Uploaded', target: 'Internal IT Security Policy v2.pdf', time: '5 hours ago', user: 'You' },
-    { id: 3, action: 'Version Comparison', target: 'MiFID II v1.0 vs v1.1', time: 'Yesterday', user: 'System' },
-    { id: 4, action: 'Regulation Update', target: 'GDPR Amendment (Draft)', time: '2 days ago', user: 'System' },
-  ];
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // BACKEND INTEGRATION POINT
+      // GET /api/user/dashboard
+      // Expected response:
+      // {
+      //   metrics: [
+      //     {
+      //       label: string,
+      //       value: string,
+      //       sub: string,
+      //       type: 'documents' | 'regulations' | 'updates'
+      //     }
+      //   ],
+      //   activityFeed: [
+      //     {
+      //       id: number,
+      //       action: string,
+      //       target: string,
+      //       time: string,
+      //       user: string
+      //     }
+      //   ]
+      // }
+      const response = await fetch('/api/user/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+
+      const data = await response.json();
+      
+      // Map metrics with icons and styling based on type
+      const mappedMetrics = (data.metrics || []).map((m: any) => {
+        let icon, color, bg;
+        
+        if (m.type === 'documents' || m.label.toLowerCase().includes('document')) {
+          icon = FileText;
+          color = 'text-blue-600';
+          bg = 'bg-blue-50';
+        } else if (m.type === 'regulations' || m.label.toLowerCase().includes('regulation')) {
+          icon = ShieldAlert;
+          color = 'text-reg-teal';
+          bg = 'bg-reg-teal/10';
+        } else {
+          icon = TrendingUp;
+          color = 'text-purple-600';
+          bg = 'bg-purple-50';
+        }
+
+        return {
+          label: m.label,
+          value: m.value,
+          sub: m.sub,
+          icon,
+          color,
+          bg
+        };
+      });
+
+      setMetrics(mappedMetrics);
+      setActivityFeed(data.activityFeed || data.activities || []);
+
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-500">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -29,18 +143,24 @@ export const UserDashboard: React.FC = () => {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {metrics.map((m, i) => (
-          <Card key={i} className="p-6 flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">{m.label}</p>
-              <h3 className="text-3xl font-bold text-reg-navy mt-2">{m.value}</h3>
-              <p className="text-xs text-slate-400 mt-1">{m.sub}</p>
-            </div>
-            <div className={`p-3 rounded-xl ${m.bg} ${m.color}`}>
-              <m.icon size={24} />
-            </div>
+        {metrics.length > 0 ? (
+          metrics.map((m, i) => (
+            <Card key={i} className="p-6 flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">{m.label}</p>
+                <h3 className="text-3xl font-bold text-reg-navy mt-2">{m.value}</h3>
+                <p className="text-xs text-slate-400 mt-1">{m.sub}</p>
+              </div>
+              <div className={`p-3 rounded-xl ${m.bg} ${m.color}`}>
+                <m.icon size={24} />
+              </div>
+            </Card>
+          ))
+        ) : (
+          <Card className="col-span-3 p-6 text-center text-slate-400">
+            No metrics available
           </Card>
-        ))}
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -53,24 +173,30 @@ export const UserDashboard: React.FC = () => {
             <Button variant="ghost" className="text-xs h-8">View Full Log</Button>
           </div>
           <div className="space-y-6">
-            {activityFeed.map((item, idx) => (
-              <div key={item.id} className="flex gap-4 relative">
-                {idx !== activityFeed.length - 1 && (
-                  <div className="absolute left-[19px] top-8 bottom-[-24px] w-px bg-slate-100"></div>
-                )}
-                <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 z-10">
-                   <div className="w-2 h-2 bg-reg-teal rounded-full"></div>
-                </div>
-                <div className="flex-1 pt-1">
-                  <div className="flex justify-between items-start">
-                    <p className="text-sm font-medium text-reg-navy">{item.action}</p>
-                    <span className="text-xs text-slate-400">{item.time}</span>
+            {activityFeed.length > 0 ? (
+              activityFeed.map((item, idx) => (
+                <div key={item.id} className="flex gap-4 relative">
+                  {idx !== activityFeed.length - 1 && (
+                    <div className="absolute left-[19px] top-8 bottom-[-24px] w-px bg-slate-100"></div>
+                  )}
+                  <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 z-10">
+                     <div className="w-2 h-2 bg-reg-teal rounded-full"></div>
                   </div>
-                  <p className="text-sm text-slate-600 mt-1">{item.target}</p>
-                  <p className="text-xs text-slate-400 mt-1">by {item.user}</p>
+                  <div className="flex-1 pt-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-medium text-reg-navy">{item.action}</p>
+                      <span className="text-xs text-slate-400">{item.time}</span>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-1">{item.target}</p>
+                    <p className="text-xs text-slate-400 mt-1">by {item.user}</p>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                No recent activity
               </div>
-            ))}
+            )}
           </div>
         </Card>
 

@@ -1,34 +1,115 @@
-import React, { useState } from 'react';
-import { GitCompare, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { GitCompare, ArrowRight, Loader2 } from 'lucide-react';
 import { Card, Button } from '../components/UI';
 import { DiffVisualizer } from '../components/DiffVisualizer';
 
-const MOCK_OLD_TEXT = `
-REGULATION PROPOSAL 2020
-
-Article 5
-Governance
-
-1. Financial entities shall have an internal governance framework for ICT risk.
-
-2. The management body shall define arrangements related to ICT risk.
-`;
-
-const MOCK_NEW_TEXT = `
-REGULATION (EU) 2022/2554
-
-Article 5
-Governance and organisation
-
-1. Financial entities shall have in place an internal governance and control framework that ensures an effective and prudent management of ICT risk to achieve a high level of digital operational resilience.
-
-2. The management body of the financial entity shall define, approve, oversee and be accountable for the implementation of all arrangements related to the ICT risk management framework.
-`;
+interface Document {
+  id: string;
+  title: string;
+  version: string;
+}
 
 export const VersionComparison: React.FC = () => {
-  const [docA, setDocA] = useState('dora-v1');
-  const [docB, setDocB] = useState('dora-v2');
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+  const [docA, setDocA] = useState('');
+  const [docB, setDocB] = useState('');
   const [showDiff, setShowDiff] = useState(false);
+  const [isComparing, setIsComparing] = useState(false);
+  const [diffData, setDiffData] = useState<{old: string, new: string} | null>(null);
+
+  // BACKEND INTEGRATION POINT
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    setLoadingDocs(true);
+    
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // BACKEND INTEGRATION POINT
+      // GET /api/documents
+      // Expected response:
+      // {
+      //   data: [
+      //     {
+      //       id: string,
+      //       title: string,
+      //       version: string
+      //     }
+      //   ]
+      // }
+      const response = await fetch('/api/documents', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+
+      const result = await response.json();
+      setDocuments(result.data || result.documents || result);
+
+    } catch (err) {
+      console.error('Fetch documents error:', err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  // BACKEND INTEGRATION POINT
+  const handleCompare = async () => {
+    if (!docA || !docB) return;
+    setIsComparing(true);
+    
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // BACKEND INTEGRATION POINT
+      // POST /api/ai/compare
+      // Request body:
+      // {
+      //   sourceDocId: string,
+      //   targetDocId: string
+      // }
+      // Expected response:
+      // {
+      //   sourceText: string,
+      //   targetText: string,
+      //   differences: [
+      //     {
+      //       type: 'added' | 'removed' | 'modified',
+      //       content: string,
+      //       lineNumber: number
+      //     }
+      //   ]
+      // }
+      const response = await fetch('/api/ai/compare', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ sourceDocId: docA, targetDocId: docB })
+      });
+      
+      if (!response.ok) throw new Error('Comparison failed');
+      
+      const data = await response.json();
+      setDiffData({ old: data.sourceText, new: data.targetText });
+      setShowDiff(true);
+
+    } catch (err) {
+      console.error('Comparison error:', err);
+      alert('Failed to compare documents. Please try again.');
+    } finally {
+      setIsComparing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)]">
@@ -43,10 +124,13 @@ export const VersionComparison: React.FC = () => {
             <select 
               value={docA}
               onChange={(e) => setDocA(e.target.value)}
+              disabled={loadingDocs}
               className="w-full p-2 bg-white border border-slate-300 rounded-lg text-sm focus:border-reg-teal focus:ring-1 focus:ring-reg-teal outline-none"
             >
-              <option value="dora-v1">DORA Proposal (2020)</option>
-              <option value="mifid-v1">MiFID I</option>
+              <option value="">Select Document...</option>
+              {documents.map(d => (
+                <option key={d.id} value={d.id}>{d.title} ({d.version})</option>
+              ))}
             </select>
          </div>
 
@@ -59,24 +143,32 @@ export const VersionComparison: React.FC = () => {
              <select 
               value={docB}
               onChange={(e) => setDocB(e.target.value)}
+              disabled={loadingDocs}
               className="w-full p-2 bg-white border border-slate-300 rounded-lg text-sm focus:border-reg-teal focus:ring-1 focus:ring-reg-teal outline-none"
             >
-              <option value="dora-v2">DORA Final Text (2022)</option>
-              <option value="mifid-v2">MiFID II</option>
+              <option value="">Select Document...</option>
+              {documents.map(d => (
+                <option key={d.id} value={d.id}>{d.title} ({d.version})</option>
+              ))}
             </select>
          </div>
 
          <div className="w-full md:w-auto mt-4 md:mt-auto">
-            <Button onClick={() => setShowDiff(true)} className="w-full md:w-auto gap-2">
+            <Button 
+              onClick={handleCompare} 
+              disabled={isComparing || !docA || !docB} 
+              className="w-full md:w-auto gap-2"
+              isLoading={isComparing}
+            >
                <GitCompare size={16} /> Compare
             </Button>
          </div>
       </Card>
 
       <div className="flex-1 overflow-hidden bg-white rounded-xl border border-reg-border">
-         {showDiff ? (
+         {showDiff && diffData ? (
            <div className="h-full p-4">
-              <DiffVisualizer oldText={MOCK_OLD_TEXT} newText={MOCK_NEW_TEXT} />
+              <DiffVisualizer oldText={diffData.old} newText={diffData.new} />
            </div>
          ) : (
            <div className="h-full flex flex-col items-center justify-center text-slate-400">

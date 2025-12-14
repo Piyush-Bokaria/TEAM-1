@@ -49,10 +49,11 @@ export const AdminUploadPage: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  // BACKEND INTEGRATION POINT
   const uploadSingleFile = async (file: File): Promise<UploadStatus> => {
     try {
       // Validate file size (50MB limit)
-      const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+      const maxSize = 50 * 1024 * 1024;
       if (file.size > maxSize) {
         return {
           fileName: file.name,
@@ -61,15 +62,28 @@ export const AdminUploadPage: React.FC = () => {
         };
       }
 
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('title', file.name.replace(/\.[^/.]+$/, '')); // filename without extension
+      formData.append('title', file.name.replace(/\.[^/.]+$/, ''));
       formData.append('status', 'Draft');
 
-      // Get auth token (adjust based on your auth implementation)
       const token = localStorage.getItem('authToken');
 
+      // BACKEND INTEGRATION POINT
+      // POST /api/documents/upload
+      // Expected request: multipart/form-data with 'file', 'title', 'status'
+      // Expected response:
+      // {
+      //   success: true,
+      //   data: {
+      //     id: string,
+      //     title: string,
+      //     fileName: string,
+      //     fileSize: number,
+      //     uploadedAt: string
+      //   },
+      //   message: string
+      // }
       const response = await fetch('/api/documents/upload', {
         method: 'POST',
         headers: {
@@ -109,6 +123,7 @@ export const AdminUploadPage: React.FC = () => {
     setShowResults(false);
     
     try {
+      // BACKEND INTEGRATION POINT
       // Upload all files in parallel
       const results = await Promise.all(
         files.map(file => uploadSingleFile(file))

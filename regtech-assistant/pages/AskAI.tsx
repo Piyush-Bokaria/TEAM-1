@@ -10,41 +10,210 @@ interface Message {
   sources?: { title: string; ref: string }[];
 }
 
+interface SuggestedQuestion {
+  id: string;
+  text: string;
+}
+
+interface Source {
+  title: string;
+  reference: string;
+  lastUsed?: string;
+}
+
 export const AskAI: React.FC = () => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([]);
+  const [recentSources, setRecentSources] = useState<Source[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      sender: 'ai',
-      text: "Hello! I am your Compliance Assistant. I can answer questions based on your indexed regulations (DORA, MiFID II, GDPR). How can I help today?"
-    }
-  ]);
+  // BACKEND INTEGRATION POINT
+  // Fetch initial data on component mount
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
+  const fetchInitialData = async () => {
+    setInitialLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // BACKEND INTEGRATION POINT
+      // GET /api/ai/chat/history
+      // Expected response:
+      // {
+      //   messages: [
+      //     {
+      //       id: string,
+      //       sender: 'user' | 'ai',
+      //       text: string,
+      //       sources?: [{ title: string, ref: string }],
+      //       timestamp: string
+      //     }
+      //   ]
+      // }
+      const historyResponse = await fetch('/api/ai/chat/history', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        const chatHistory = historyData.messages || historyData.data || [];
+        
+        // If no history, show welcome message
+        if (chatHistory.length === 0) {
+          setMessages([
+            {
+              id: 'welcome',
+              sender: 'ai',
+              text: "Hello! I am your Compliance Assistant. I can answer questions based on your indexed regulations (DORA, MiFID II, GDPR). How can I help today?"
+            }
+          ]);
+        } else {
+          setMessages(chatHistory);
+        }
+      }
+
+      // BACKEND INTEGRATION POINT
+      // GET /api/ai/suggested-questions
+      // Expected response:
+      // {
+      //   questions: [
+      //     { id: string, text: string }
+      //   ]
+      // }
+      const questionsResponse = await fetch('/api/ai/suggested-questions', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (questionsResponse.ok) {
+        const questionsData = await questionsResponse.json();
+        setSuggestedQuestions(questionsData.questions || questionsData.data || []);
+      }
+
+      // BACKEND INTEGRATION POINT
+      // GET /api/ai/recent-sources
+      // Expected response:
+      // {
+      //   sources: [
+      //     { title: string, reference: string, lastUsed: string }
+      //   ]
+      // }
+      const sourcesResponse = await fetch('/api/ai/recent-sources', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (sourcesResponse.ok) {
+        const sourcesData = await sourcesResponse.json();
+        setRecentSources(sourcesData.sources || sourcesData.data || []);
+      }
+
+    } catch (err) {
+      console.error('Failed to fetch initial data:', err);
+      setError('Failed to load chat data');
+      // Show welcome message on error
+      setMessages([
+        {
+          id: 'welcome',
+          sender: 'ai',
+          text: "Hello! I am your Compliance Assistant. I can answer questions based on your indexed regulations (DORA, MiFID II, GDPR). How can I help today?"
+        }
+      ]);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
+  // BACKEND INTEGRATION POINT
   const handleSend = async () => {
     if (!query.trim()) return;
 
     const userMsg: Message = { id: Date.now().toString(), sender: 'user', text: query };
     setMessages(prev => [...prev, userMsg]);
+    const currentQuery = query;
     setQuery('');
     setLoading(true);
 
-    // Simulate AI delay
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // BACKEND INTEGRATION POINT
+      // POST /api/ai/chat
+      // Request body:
+      // {
+      //   query: string,
+      //   conversationId?: string
+      // }
+      // Expected response:
+      // {
+      //   id: string,
+      //   text: string,
+      //   sources: [
+      //     { title: string, ref: string }
+      //   ],
+      //   conversationId: string
+      // }
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: currentQuery,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const data = await response.json();
+      
       const aiMsg: Message = {
+        id: data.id || (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: data.text || data.response || 'I apologize, but I could not generate a response.',
+        sources: data.sources || []
+      };
+
+      setMessages(prev => [...prev, aiMsg]);
+
+      // Update recent sources if new ones were provided
+      if (data.sources && data.sources.length > 0) {
+        setRecentSources(prev => {
+          const newSources = data.sources.map((s: any) => ({
+            title: s.title,
+            reference: s.ref,
+            lastUsed: new Date().toISOString()
+          }));
+          return [...newSources, ...prev].slice(0, 5);
+        });
+      }
+
+    } catch (err) {
+      console.error('AI chat error:', err);
+      const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: "Under DORA Article 5, financial entities are required to establish an internal governance and control framework. This must ensure effective and prudent management of ICT risk to achieve a high level of digital operational resilience. The management body is ultimately accountable for this implementation.",
-        sources: [
-          { title: 'DORA Regulation (EU) 2022/2554', ref: 'Article 5, Paragraph 1' },
-          { title: 'DORA Regulation (EU) 2022/2554', ref: 'Article 5, Paragraph 2' }
-        ]
+        text: 'I apologize, but I encountered an error processing your question. Please try again.',
       };
-      setMessages(prev => [...prev, aiMsg]);
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   useEffect(() => {
@@ -52,6 +221,22 @@ export const AskAI: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
+
+  if (initialLoading) {
+    return (
+      <div className="h-[calc(100vh-140px)] flex items-center justify-center">
+        <div className="text-slate-500">Loading chat...</div>
+      </div>
+    );
+  }
+
+  if (error && messages.length === 0) {
+    return (
+      <div className="h-[calc(100vh-140px)] flex items-center justify-center">
+        <div className="text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-140px)] flex gap-6">
@@ -79,7 +264,7 @@ export const AskAI: React.FC = () => {
                 </div>
                 
                 {/* Citations */}
-                {msg.sources && (
+                {msg.sources && msg.sources.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {msg.sources.map((src, idx) => (
                       <button key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-reg-teal/30 text-reg-teal rounded-lg text-xs font-medium hover:bg-reg-teal/5 transition-colors">
@@ -138,23 +323,33 @@ export const AskAI: React.FC = () => {
              <Sparkles size={14} className="text-reg-teal"/> Suggested Questions
            </h3>
            <div className="space-y-2">
-             {["What are the reporting requirements for major ICT incidents?", "Explain the 'Digital Operational Resilience' definition.", "Who is responsible for third-party risk management?"].map((q, i) => (
-               <button key={i} onClick={() => { setQuery(q); }} className="w-full text-left text-xs p-2.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:border-reg-teal hover:text-reg-teal transition-colors">
-                 {q}
-               </button>
-             ))}
+             {suggestedQuestions.length > 0 ? (
+               suggestedQuestions.map((q) => (
+                 <button key={q.id} onClick={() => { setQuery(q.text); }} className="w-full text-left text-xs p-2.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:border-reg-teal hover:text-reg-teal transition-colors">
+                   {q.text}
+                 </button>
+               ))
+             ) : (
+               <p className="text-xs text-slate-400 text-center py-4">No suggestions available</p>
+             )}
            </div>
         </Card>
 
         <Card className="flex-1 p-4">
            <h3 className="font-semibold text-reg-navy text-sm mb-3">Sources in Context</h3>
-           <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 mb-2">
-              <div className="flex items-start justify-between">
-                <p className="text-xs font-bold text-blue-800">DORA Regulation</p>
-                <ExternalLink size={12} className="text-blue-500" />
-              </div>
-              <p className="text-[10px] text-blue-600 mt-1">Article 5 referenced in last answer.</p>
-           </div>
+           {recentSources.length > 0 ? (
+             recentSources.slice(0, 3).map((source, idx) => (
+               <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-100 mb-2">
+                  <div className="flex items-start justify-between">
+                    <p className="text-xs font-bold text-blue-800">{source.title}</p>
+                    <ExternalLink size={12} className="text-blue-500" />
+                  </div>
+                  <p className="text-[10px] text-blue-600 mt-1">{source.reference} referenced recently.</p>
+               </div>
+             ))
+           ) : (
+             <p className="text-xs text-slate-400 text-center py-4">No recent sources</p>
+           )}
         </Card>
       </div>
     </div>
