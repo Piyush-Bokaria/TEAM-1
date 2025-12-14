@@ -158,4 +158,4 @@ if ask_btn and question.strip():
 # Footer
 # ======================================================
 st.markdown("---")
-st.caption("Powered by Gemini Pro · LangChain · FAISS · Streamlit")
+st.caption("Powered by Grok· LangChain · FAISS · Streamlit")
